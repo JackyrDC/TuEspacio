@@ -1,6 +1,6 @@
 import pb from "../config/pocketbase.js"
 
-const login = async (email, password) => {
+const login = async (email:string, password:string) => {
   try{
     const user = await pb.collection("users").authWithPassword(email, password)
     localStorage.setItem("user", JSON.stringify(user))

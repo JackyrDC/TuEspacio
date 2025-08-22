@@ -30,9 +30,20 @@ const verifyEmailRequest  = async (id: string, email: string) => {
     if(!user)
     {
         throw new Error("User not found")
-    }
+  }
     else{
         await pb.collection("users").requestVerification(email)
+    }
+}
+
+const verifiedEmail = async (id: string, email: string) => {
+    const user = await getUserbyId(id)
+    if(!user)
+    {
+        throw new Error("User not found")
+    }
+    else{
+        await pb.collection("users").confirmVerification(email)
     }
 }
 
@@ -48,4 +59,13 @@ const resetPasswordRequest = async (id: string, email: string ) =>
     }
 }
 
-//const resetPassword = async (id: string, new)
+const resetPassword = async (id: string, newPassword: string) =>{
+    const user = await getUserbyId(id)
+    if(!user)
+    {
+        throw new Error("User not found")
+    }
+    else{
+        await pb.collection("users").confirmPasswordReset(user.id, newPassword, newPassword)
+    }   
+}
