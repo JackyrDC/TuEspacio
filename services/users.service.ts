@@ -48,4 +48,26 @@ const resetPasswordRequest = async (id: string, email: string ) =>
     }
 }
 
-//const resetPassword = async (id: string, new)
+const resetPassword = async (id: string, newPassword: string, resetToken: string) =>
+{
+    const user = await getUserbyId(id)
+    if(!user||!resetToken)
+    {
+        throw new Error("User not found")
+    }
+    else{
+        await pb.collection("users").confirmPasswordReset(resetToken, newPassword, newPassword)
+        return true
+    }
+}
+
+export default {
+    getUsers,
+    getUserbyId,
+    getUsersbyName,
+    getUsersbyEmail,
+    createUser,
+    verifyEmailRequest,
+    resetPasswordRequest,
+    resetPassword
+}

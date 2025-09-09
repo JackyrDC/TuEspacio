@@ -41,7 +41,7 @@ interface Places{
     description: string
     type: PlaceTypes
     status: PlaceStatus
-    landlord: User
+    owner: User
     location: Geopoint
     size: number
     photos: string[]
