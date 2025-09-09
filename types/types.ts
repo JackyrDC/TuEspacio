@@ -3,9 +3,9 @@ type Geopoint = {
     lng: number
 }
 
-interface UserTypes {
+interface UserRoles {
     id: string
-    typeName: "dueño"| "inquilino" | "administrador"
+    role: "dueño"| "inquilino" | "administrador"
     created: Date
     updated: Date
 }
@@ -15,7 +15,7 @@ interface User {
   email: string
   name: string
   avatar?: string
-  type: UserTypes
+  role: UserRoles
   isActive: boolean
   created: Date
   updated: Date
@@ -68,12 +68,12 @@ interface Contract{
     updated: Date
 }
 
-export {
+export type{
     User,
     Places,
     Contract,
     Geopoint,
-    UserTypes,
+    UserRoles,
     ContractStatus,
     PlaceStatus,
     PlaceTypes
