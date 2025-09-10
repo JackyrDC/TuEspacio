@@ -23,8 +23,9 @@ const Tab = createBottomTabNavigator();
 const Stack = createStackNavigator();
 
 // Componente simple para iconos de tab
-const TabIcon = ({ children, color }: { children: string; color: string }) => (
-  <Text style={{ color: color, fontSize: 20 }}>{children}</Text>
+// Corregido: cambiar children a icon para evitar confusión
+const TabIcon = ({ icon, color }: { icon: string; color: string }) => (
+  <Text style={{ color: color, fontSize: 20 }}>{icon}</Text>
 );
 
 // Auth Stack (Login/Register)
@@ -82,7 +83,7 @@ function MainTabs() {
         component={HomeScreen}
         options={{
           title: 'Inicio',
-          tabBarIcon: ({ color }: any) => <TabIcon color={color}>🏠</TabIcon>,
+          tabBarIcon: ({ color }: any) => <TabIcon icon="🏠" color={color} />,
         }}
       />
       <Tab.Screen 
@@ -90,7 +91,7 @@ function MainTabs() {
         component={PlacesStack}
         options={{
           title: 'Lugares',
-          tabBarIcon: ({ color }: any) => <TabIcon color={color}>📍</TabIcon>,
+          tabBarIcon: ({ color }: any) => <TabIcon icon="📍" color={color} />,
         }}
       />
       <Tab.Screen 
@@ -98,7 +99,7 @@ function MainTabs() {
         component={ContractsScreen}
         options={{
           title: 'Contratos',
-          tabBarIcon: ({ color }: any) => <TabIcon color={color}>📋</TabIcon>,
+          tabBarIcon: ({ color }: any) => <TabIcon icon="📋" color={color} />,
         }}
       />
       <Tab.Screen 
@@ -106,7 +107,7 @@ function MainTabs() {
         component={ProfileScreen}
         options={{
           title: 'Perfil',
-          tabBarIcon: ({ color }: any) => <TabIcon color={color}>👤</TabIcon>,
+          tabBarIcon: ({ color }: any) => <TabIcon icon="👤" color={color} />,
         }}
       />
     </Tab.Navigator>

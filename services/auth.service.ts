@@ -1,7 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import pb from "../config/pocketbase";
 
-<<<<<<< HEAD
 export interface User {
   id: string;
   email: string;
@@ -29,13 +28,6 @@ const login = async (email: string, password: string) => {
     await AsyncStorage.setItem("token", authData.token);
     
     return authData;
-=======
-const login = async (email:string, password:string) => {
-  try{
-    const user = await pb.collection("users").authWithPassword(email, password)
-    localStorage.setItem("user", JSON.stringify(user))
-    return user
->>>>>>> 3e0f48c89bfc04ecc72dc40b5b67586d3131d649
   } catch (error) {
     console.error("Login failed:", error);
     throw error;
