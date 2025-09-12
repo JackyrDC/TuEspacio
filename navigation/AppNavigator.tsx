@@ -20,7 +20,18 @@ import MapSearchScreen from '../screens/MapSearchScreen';
 
 // Crear navegadores
 const Tab = createBottomTabNavigator();
-const Stack = createStackNavigator();
+
+// Define los tipos para los parámetros de navegación
+type RootStackParamList = {
+  PlacesList: undefined;
+  PlaceDetail: { placeId?: string };
+  MapSearch: undefined;
+  Login: undefined;
+  Register: undefined;
+};
+
+// Usa el tipo genérico en la creación del navegador
+const Stack = createStackNavigator<RootStackParamList>();
 
 // Componente simple para iconos de tab
 // Corregido: cambiar children a icon para evitar confusión
