@@ -21,10 +21,16 @@
         "backgroundColor": "#2563EB"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false
+      "predictiveBackGestureEnabled": false,
+      "package": "com.jackdc.TuEspacio"
     },
     "web": {
       "favicon": "./assets/icons/TuEspacio.png"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "b4d803c1-4b8f-4f6b-b99d-27bda78f1a37"
+      }
     }
   }
 }
