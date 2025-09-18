@@ -8,14 +8,12 @@ interface AuthContextType {
   isLoading: boolean;
   isAuthenticated: boolean;
   needsProfileCompletion: boolean;
-  needsDocumentCompletion: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (userData: RegisterData) => Promise<void>;
   logout: () => Promise<void>;
   refreshAuth: () => Promise<void>;
   updateProfile: (userData: Partial<User>) => Promise<void>;
   markProfileCompleted: () => void;
-  markDocumentsCompleted: () => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -28,7 +26,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [needsProfileCompletion, setNeedsProfileCompletion] = useState(false);
-  const [needsDocumentCompletion, setNeedsDocumentCompletion] = useState(false);
 
   const isAuthenticated = user !== null;
 
@@ -75,6 +72,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const login = async (email: string, password: string) => {
     try {
       const authData = await authService.login(email, password);
+      console.log('Login exitoso, usuario:', authData.record);
       setUser(authData.record as unknown as User);
     } catch (error) {
       console.error('Error de login en contexto:', error);
@@ -113,8 +111,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Verificar si todavía estamos autenticados después del refresh
       if (authService.isAuthenticated()) {
         const currentUser = await authService.getCurrentUser();
+        console.log('Usuario autenticado después de refresh:', currentUser);
         setUser(currentUser);
       } else {
+        console.log('No hay usuario autenticado después de refresh');
         setUser(null);
       }
     } catch (error) {
@@ -143,14 +143,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const markProfileCompleted = () => {
     setNeedsProfileCompletion(false);
-    // Para inquilinos, después de completar perfil, necesitan completar documentos
-    if (user?.type === 'Inquilino') {
-      setNeedsDocumentCompletion(true);
-    }
-  };
-
-  const markDocumentsCompleted = () => {
-    setNeedsDocumentCompletion(false);
   };
 
   const value: AuthContextType = {
@@ -158,14 +150,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     isLoading,
     isAuthenticated,
     needsProfileCompletion,
-    needsDocumentCompletion,
     login,
     register,
     logout,
     refreshAuth,
     updateProfile,
     markProfileCompleted,
-    markDocumentsCompleted,
   };
 
   return (

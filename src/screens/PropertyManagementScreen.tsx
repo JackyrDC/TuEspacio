@@ -9,23 +9,33 @@ import {
   TouchableOpacity,
   Alert,
   RefreshControl,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { Colors, Sizes } from '../constants/Colors';
 import { useAuth } from '../context/AuthContext';
+import placesService from '../../services/places.service';
+import demoService from '../../services/demo.service';
 
 interface Property {
   id: string;
   title: string;
   type: string;
   price: number;
+  monthlyPrice?: number; // Campo de compatibilidad
   address: string;
   status: 'active' | 'pending' | 'inactive';
   views: number;
   applications: number;
   photos: string[];
   createdAt: string;
+  // Campos adicionales de PocketBase
+  description?: string;
+  size?: number;
+  location?: { lat: number; lng: number };
+  property_type?: string;
+  property_status?: string;
 }
 
 export default function PropertyManagementScreen() {
@@ -42,12 +52,140 @@ export default function PropertyManagementScreen() {
 
   const loadProperties = async () => {
     try {
-      // TODO: Integrar con servicio de propiedades
-      // Datos de ejemplo
+      setLoading(true);
+      console.log('Iniciando carga de propiedades...');
+      
+      if (!user?.id) {
+        console.log('No hay usuario logueado');
+        Alert.alert('Error', 'No hay usuario autenticado');
+        return;
+      }
+      
+      console.log('Usuario autenticado:', user.id, user.name);
+      
+      // Test de conectividad a PocketBase
+      try {
+        console.log('Probando conectividad a PocketBase...');
+        const testConnection = await placesService.getPlaces();
+        console.log('Conexión a PocketBase exitosa, propiedades disponibles:', testConnection.totalItems);
+      } catch (connectionError) {
+        console.error('Error de conexión a PocketBase:', connectionError);
+        throw new Error('No se puede conectar a la base de datos');
+      }
+      
+      // Cargar propiedades del usuario desde PocketBase
+      console.log('Llamando a placesService.getPlacebyOwner...');
+      const userProperties = await placesService.getPlacebyOwner(user.id);
+      console.log('Respuesta del servicio:', userProperties);
+      
+      // Verificar si es un array
+      if (!Array.isArray(userProperties)) {
+        console.error('La respuesta no es un array:', typeof userProperties);
+        throw new Error('Formato de respuesta inválido');
+      }
+      
+      // Convertir datos de PocketBase al formato esperado
+      const formattedProperties: Property[] = userProperties.map((place: any, index: number) => {
+        console.log(`Procesando propiedad ${index + 1}:`, {
+          id: place.id,
+          title: place.title,
+          type: place.type,
+          status: place.status,
+          monthlyPrice: place.monthlyPrice,
+          owner: place.owner,
+          owner_id: place.owner_id,
+          owner_name: place.owner_name
+        });
+        
+        return {
+          id: place.id,
+          title: place.title || 'Propiedad sin título',
+          type: place.property_type || place.type?.type || place.type || 'departamento',
+          price: place.price || place.monthlyPrice || 0, // Usar price como campo principal
+          monthlyPrice: place.monthlyPrice || place.price || 0, // Campo de compatibilidad
+          address: place.address || place.city || place.neighborhood || `${place.location?.lat || 0}, ${place.location?.lng || 0}`,
+          status: place.property_status === 'disponible' || place.status?.status === 'disponible' ? 'active' : 
+                  place.property_status === 'reservado' || place.status?.status === 'reservado' ? 'pending' : 
+                  place.property_status === 'no disponible' || place.status?.status === 'no disponible' ? 'inactive' : 'active',
+          views: Math.floor(Math.random() * 100), // Simulado por ahora
+          applications: Math.floor(Math.random() * 10), // Simulado por ahora
+          photos: place.photos || [],
+          createdAt: place.created ? new Date(place.created).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
+          // Campos adicionales de PocketBase
+          description: place.description,
+          size: place.size,
+          location: place.location,
+          property_type: place.property_type,
+          property_status: place.property_status
+        };
+      });
+      
+      console.log('Propiedades formateadas:', formattedProperties.length);
+      
+      // Si no hay propiedades reales, mostrar datos de ejemplo
+      if (formattedProperties.length === 0) {
+        console.log('No se encontraron propiedades del usuario, mostrando datos de ejemplo');
+        const mockProperties: Property[] = [
+          {
+            id: '1',
+            title: 'Apartamento cerca de UNAH (Ejemplo)',
+            type: 'departamento',
+            price: 8000,
+            address: 'Col. Universidad, Tegucigalpa',
+            status: 'active',
+            views: 145,
+            applications: 8,
+            photos: [],
+            createdAt: '2024-01-15',
+          },
+          {
+            id: '2',
+            title: 'Habitación amueblada (Ejemplo)',
+            type: 'habitación',
+            price: 4500,
+            address: 'Barrio Los Andes, Tegucigalpa',
+            status: 'pending',
+            views: 67,
+            applications: 3,
+            photos: [],
+            createdAt: '2024-01-10',
+          },
+          {
+            id: 'example-pending',
+            title: 'Propiedad en revisión (Ejemplo)',
+            type: 'departamento',
+            price: 7500,
+            address: 'Centro, Tegucigalpa',
+            status: 'pending',
+            views: 0,
+            applications: 0,
+            photos: [],
+            createdAt: new Date().toISOString().split('T')[0],
+          },
+        ];
+        setProperties(mockProperties);
+        Alert.alert(
+          'Sin propiedades',
+          'No tienes propiedades creadas aún. Se muestran ejemplos para demostración.',
+          [{ text: 'OK' }]
+        );
+      } else {
+        setProperties(formattedProperties);
+        Alert.alert(
+          'Propiedades cargadas',
+          `Se cargaron ${formattedProperties.length} propiedad(es) tuya(s).`,
+          [{ text: 'OK' }]
+        );
+      }
+      
+    } catch (error) {
+      console.error('Error al cargar propiedades:', error);
+      
+      // En caso de error, mostrar datos de ejemplo
       const mockProperties: Property[] = [
         {
           id: '1',
-          title: 'Apartamento cerca de UNAH',
+          title: 'Apartamento cerca de UNAH (Error - Ejemplo)',
           type: 'departamento',
           price: 8000,
           address: 'Col. Universidad, Tegucigalpa',
@@ -59,7 +197,7 @@ export default function PropertyManagementScreen() {
         },
         {
           id: '2',
-          title: 'Habitación amueblada',
+          title: 'Habitación amueblada (Error - Ejemplo)',
           type: 'habitación',
           price: 4500,
           address: 'Barrio Los Andes, Tegucigalpa',
@@ -69,25 +207,17 @@ export default function PropertyManagementScreen() {
           photos: [],
           createdAt: '2024-01-10',
         },
-        {
-          id: '3',
-          title: 'Casa completa para estudiantes',
-          type: 'casa',
-          price: 15000,
-          address: 'Col. Kennedy, Tegucigalpa',
-          status: 'inactive',
-          views: 289,
-          applications: 15,
-          photos: [],
-          createdAt: '2024-01-05',
-        },
       ];
-      
       setProperties(mockProperties);
-    } catch (error) {
-      Alert.alert('Error', 'No se pudieron cargar las propiedades');
+      
+      Alert.alert(
+        'Error de conexión',
+        `No se pudieron cargar tus propiedades reales: ${error instanceof Error ? error.message : 'Error desconocido'}. Se muestran datos de ejemplo.`,
+        [{ text: 'OK' }]
+      );
     } finally {
       setLoading(false);
+      console.log('Carga de propiedades finalizada');
     }
   };
 
@@ -95,6 +225,112 @@ export default function PropertyManagementScreen() {
     setRefreshing(true);
     await loadProperties();
     setRefreshing(false);
+  };
+
+  const handleDebugInfo = async () => {
+    try {
+      console.log('=== DEBUG INFO ===');
+      console.log('Usuario actual:', user);
+      
+      // Obtener todas las propiedades para debug
+      const allProperties = await placesService.getPlaces();
+      console.log('Todas las propiedades:', allProperties);
+      
+      // Debug específico de coordenadas
+      console.log('🌍 === DEBUGGING COORDENADAS ===');
+      await placesService.debugCoordinates();
+      
+      Alert.alert(
+        'Información de Debug',
+        `Usuario: ${user?.name} (${user?.id})\n` +
+        `Total propiedades en BD: ${allProperties.totalItems || 0}\n` +
+        `Revisa la consola para análisis de coordenadas.`,
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { 
+            text: 'Corregir Coordenadas', 
+            onPress: () => handleFixCoordinates() 
+          },
+          { text: 'OK' }
+        ]
+      );
+    } catch (error) {
+      console.error('Error en debug:', error);
+      Alert.alert('Error', 'No se pudo obtener información de debug');
+    }
+  };
+
+  const handleFixCoordinates = async () => {
+    try {
+      Alert.alert(
+        'Corregir Coordenadas',
+        '¿Deseas corregir las coordenadas de todas las propiedades? Esto asignará coordenadas válidas a propiedades que no las tengan.',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Corregir',
+            onPress: async () => {
+              try {
+                console.log('🔧 Iniciando corrección de coordenadas...');
+                const result = await placesService.fixCoordinates();
+                
+                Alert.alert(
+                  'Coordenadas Corregidas',
+                  `Se revisaron ${result.totalChecked} propiedades.\n` +
+                  `Se corrigieron ${result.corrected} propiedades.\n\n` +
+                  'Revisa la consola para más detalles.',
+                  [{ text: 'OK', onPress: () => loadProperties() }]
+                );
+              } catch (error) {
+                console.error('Error al corregir coordenadas:', error);
+                Alert.alert('Error', 'No se pudieron corregir las coordenadas.');
+              }
+            },
+          },
+        ]
+      );
+    } catch (error) {
+      console.error('Error en corrección de coordenadas:', error);
+      Alert.alert('Error', 'No se pudo corregir las coordenadas');
+    }
+  };
+
+  const handlePopulateDemoData = async () => {
+    Alert.alert(
+      'Datos de Demo',
+      '¿Quieres poblar la base de datos con propiedades de ejemplo para la demostración?',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Poblar Datos', 
+          onPress: async () => {
+            try {
+              setLoading(true);
+              console.log('🌱 Poblando datos de demo...');
+              
+              const result = await demoService.populateDemoData();
+              
+              if (result.success) {
+                Alert.alert(
+                  'Datos Creados',
+                  `Se crearon ${result.created} propiedades de ejemplo.\n` +
+                  `Errores: ${result.errors}\n` +
+                  `Total procesadas: ${result.total}`,
+                  [{ text: 'OK', onPress: () => loadProperties() }]
+                );
+              } else {
+                Alert.alert('Error', `No se pudieron crear los datos: ${result.error}`);
+              }
+            } catch (error) {
+              console.error('Error poblando datos:', error);
+              Alert.alert('Error', 'No se pudieron crear los datos de demo.');
+            } finally {
+              setLoading(false);
+            }
+          },
+        },
+      ]
+    );
   };
 
   const handleAddProperty = () => {
@@ -106,8 +342,43 @@ export default function PropertyManagementScreen() {
     Alert.alert('Editar', `Editar propiedad ${propertyId}`);
   };
 
-  const handleToggleStatus = (propertyId: string, currentStatus: string) => {
+  const handleToggleStatus = async (propertyId: string, currentStatus: string) => {
+    // Si la propiedad está pendiente, ofrecer aprobar
+    if (currentStatus === 'pending') {
+      Alert.alert(
+        'Aprobar propiedad',
+        '¿Deseas aprobar esta propiedad? Se publicará automáticamente.',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          {
+            text: 'Aprobar',
+            onPress: async () => {
+              try {
+                // Actualizar estado en PocketBase (simplificado)
+                await placesService.updatePlace(propertyId, {
+                  'status.status': 'disponible'
+                } as any);
+                
+                // Actualizar estado local
+                setProperties(prev =>
+                  prev.map(p => p.id === propertyId ? { ...p, status: 'active' as any } : p)
+                );
+                Alert.alert('¡Propiedad aprobada!', 'Tu propiedad ya está publicada y visible para los inquilinos.');
+              } catch (error) {
+                console.error('Error al aprobar propiedad:', error);
+                Alert.alert('Error', 'No se pudo aprobar la propiedad. Intenta de nuevo.');
+              }
+            },
+          },
+        ]
+      );
+      return;
+    }
+
+    // Para propiedades activas/inactivas, alternar estado normal
     const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
+    const pocketbaseStatus = newStatus === 'active' ? 'disponible' : 'no disponible';
+    
     Alert.alert(
       'Cambiar estado',
       `¿Deseas ${newStatus === 'active' ? 'activar' : 'desactivar'} esta propiedad?`,
@@ -115,10 +386,21 @@ export default function PropertyManagementScreen() {
         { text: 'Cancelar', style: 'cancel' },
         {
           text: 'Confirmar',
-          onPress: () => {
-            setProperties(prev =>
-              prev.map(p => p.id === propertyId ? { ...p, status: newStatus as any } : p)
-            );
+          onPress: async () => {
+            try {
+              // Actualizar estado en PocketBase (simplificado)
+              await placesService.updatePlace(propertyId, {
+                'status.status': pocketbaseStatus
+              } as any);
+              
+              // Actualizar estado local
+              setProperties(prev =>
+                prev.map(p => p.id === propertyId ? { ...p, status: newStatus as any } : p)
+              );
+            } catch (error) {
+              console.error('Error al cambiar estado:', error);
+              Alert.alert('Error', 'No se pudo cambiar el estado de la propiedad. Intenta de nuevo.');
+            }
           },
         },
       ]
@@ -205,7 +487,7 @@ export default function PropertyManagementScreen() {
             {property.title}
           </Text>
           <Text style={styles.propertySubtitle}>
-            {property.type.charAt(0).toUpperCase() + property.type.slice(1)} • L. {property.price.toLocaleString()}/mes
+            {property.type.charAt(0).toUpperCase() + property.type.slice(1)} • L. {(property.price || property.monthlyPrice || 0).toLocaleString()}/mes
           </Text>
           <Text style={styles.propertyAddress} numberOfLines={1}>
             📍 {property.address}
@@ -303,9 +585,30 @@ export default function PropertyManagementScreen() {
           <Ionicons name="arrow-back" size={24} color={Colors.white} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Mis Propiedades</Text>
-        <TouchableOpacity style={styles.addButton} onPress={handleAddProperty}>
-          <Ionicons name="add" size={24} color={Colors.white} />
-        </TouchableOpacity>
+        <View style={styles.headerButtons}>
+          <TouchableOpacity 
+            style={styles.debugButton} 
+            onPress={handleDebugInfo}
+          >
+            <Ionicons name="bug" size={20} color={Colors.white} />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.demoButton} 
+            onPress={handlePopulateDemoData}
+          >
+            <Ionicons name="documents" size={20} color={Colors.white} />
+          </TouchableOpacity>
+          <TouchableOpacity 
+            style={styles.refreshButton} 
+            onPress={loadProperties}
+            disabled={loading}
+          >
+            <Ionicons name="refresh" size={20} color={Colors.white} />
+          </TouchableOpacity>
+          <TouchableOpacity style={styles.addButton} onPress={handleAddProperty}>
+            <Ionicons name="add" size={24} color={Colors.white} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Filter Tabs */}
@@ -321,6 +624,7 @@ export default function PropertyManagementScreen() {
       >
         {loading ? (
           <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={Colors.primary} />
             <Text style={styles.loadingText}>Cargando propiedades...</Text>
           </View>
         ) : filteredProperties.length === 0 ? (
@@ -416,6 +720,8 @@ const styles = StyleSheet.create({
   loadingText: {
     fontSize: Sizes.fontMD,
     color: Colors.textSecondary,
+    marginTop: Sizes.lg,
+    textAlign: 'center',
   },
   propertiesList: {
     padding: Sizes.lg,
@@ -582,5 +888,25 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,
+  },
+  headerButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Sizes.sm,
+  },
+  refreshButton: {
+    padding: Sizes.sm,
+    borderRadius: Sizes.borderRadius,
+    backgroundColor: Colors.primary + '20',
+  },
+  debugButton: {
+    padding: Sizes.sm,
+    borderRadius: Sizes.borderRadius,
+    backgroundColor: Colors.warning + '30',
+  },
+  demoButton: {
+    padding: Sizes.sm,
+    borderRadius: Sizes.borderRadius,
+    backgroundColor: Colors.success + '30',
   },
 });

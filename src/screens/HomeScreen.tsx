@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
   Alert,
   ScrollView,
@@ -13,11 +12,13 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { Colors, Sizes } from '../constants/Colors';
 import { useAuth } from '../context/AuthContext';
 import CustomButton from '../components/CustomButton';
+import FavoriteButton from '../components/FavoriteButton';
 import placesService from '../../services/places.service';
 import { Places } from '../../types/types';
 import { RootStackParamList } from '../types/navigation';
@@ -32,12 +33,10 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Cargar propiedades al montar el componente
   useEffect(() => {
     loadProperties();
   }, []);
 
-  // Manejar búsqueda en tiempo real
   useEffect(() => {
     const delayedSearch = setTimeout(() => {
       performSearch();
@@ -54,22 +53,43 @@ export default function HomeScreen() {
   const performSearch = async () => {
     try {
       setLoading(true);
-      // Usar filterPlaces que maneja tanto búsqueda como filtros
+      // Usar filterPlaces que maneja tanto búsqueda como filtros en PocketBase
       const searchResult = await placesService.filterPlaces(selectedFilter, searchText);
       
-      // Convertir los datos a nuestro formato
+      // Convertir los datos reales de PocketBase a nuestro formato
       const formattedProperties: Places[] = searchResult.items?.map((place: any) => ({
         id: place.id,
         title: place.title || 'Propiedad sin título',
         description: place.description || '',
-        type: place.type || { type: 'departamento' },
-        status: place.status || { status: 'disponible' },
-        owner: place.owner || { name: 'Propietario' },
-        location: place.location || { lat: 0, lng: 0 },
+        type: { 
+          id: place.id + '_type',
+          type: place.property_type || 'departamento',
+          created: new Date(place.created),
+          updated: new Date(place.updated)
+        },
+        status: { 
+          id: place.id + '_status',
+          status: place.property_status || 'disponible',
+          created: new Date(place.created),
+          updated: new Date(place.updated)
+        },
+        owner: place.expand?.owner || { 
+          id: place.owner || 'unknown',
+          name: 'Propietario',
+          email: '',
+          isActive: true,
+          created: new Date(place.created),
+          updated: new Date(place.updated)
+        },
+        location: place.location ? {
+          lat: place.location.lat || 0,
+          lng: place.location.lon || place.location.lng || 0  // ← Priorizar "lon" sobre "lng"
+        } : { lat: 0, lng: 0 },
         size: place.size || 0,
+        price: place.price || place.monthlyPrice || 0, // Usar el campo price de PocketBase
         photos: place.photos || [],
-        created: place.created,
-        updated: place.updated,
+        created: new Date(place.created),
+        updated: new Date(place.updated),
       })) || [];
       
       setProperties(formattedProperties);
@@ -89,24 +109,62 @@ export default function HomeScreen() {
     try {
       setLoading(true);
       
+      // Test de conexión primero
+      console.log('🧪 HomeScreen: Iniciando carga de propiedades...');
+      const isConnected = await placesService.testConnection();
+      if (!isConnected) {
+        Alert.alert(
+          'Error de conexión',
+          'No se pudo conectar a la base de datos. Verifica tu conexión a internet.',
+          [
+            { text: 'Reintentar', onPress: loadProperties },
+            { text: 'OK' }
+          ]
+        );
+        return;
+      }
+      
       const placesData = await placesService.getPlaces();
       
-      // Convertir los datos de PocketBase a nuestro formato
+      // Convertir los datos reales de PocketBase a nuestro formato
       const formattedProperties: Places[] = placesData.items?.map((place: any) => ({
         id: place.id,
         title: place.title || 'Propiedad sin título',
         description: place.description || '',
-        type: place.type || { type: 'departamento' },
-        status: place.status || { status: 'disponible' },
-        owner: place.owner || { name: 'Propietario' },
-        location: place.location || { lat: 0, lng: 0 },
+        type: { 
+          id: place.id + '_type',
+          type: place.property_type || 'departamento',
+          created: new Date(place.created),
+          updated: new Date(place.updated)
+        },
+        status: { 
+          id: place.id + '_status',
+          status: place.property_status || 'disponible',
+          created: new Date(place.created),
+          updated: new Date(place.updated)
+        },
+        owner: place.expand?.owner || { 
+          id: place.owner || 'unknown',
+          name: 'Propietario',
+          email: '',
+          isActive: true,
+          created: new Date(place.created),
+          updated: new Date(place.updated)
+        },
+        location: place.location ? {
+          lat: place.location.lat || 0,
+          lng: place.location.lon || place.location.lng || 0  // ← Priorizar "lon" sobre "lng"
+        } : { lat: 0, lng: 0 },
         size: place.size || 0,
+        price: place.price || place.monthlyPrice || 0, // Usar el campo price de PocketBase
         photos: place.photos || [],
-        created: place.created,
-        updated: place.updated,
+        created: new Date(place.created),
+        updated: new Date(place.updated),
       })) || [];
       
+      console.log(`🏠 HomeScreen: ${formattedProperties.length} propiedades cargadas exitosamente`);
       setProperties(formattedProperties);
+      
     } catch (error) {
       console.error('HomeScreen: Error al cargar propiedades:', error);
       Alert.alert(
@@ -144,11 +202,6 @@ export default function HomeScreen() {
     navigation.navigate('Profile');
   };
 
-  const handleDocumentsPress = () => {
-    // Navegar a la pantalla de documentos
-    navigation.navigate('UserDocuments');
-  };
-
   const filters = [
     { id: 'near-unah', label: 'Cerca UNAH', icon: '🎓' },
     { id: 'economic', label: 'Económico', icon: '💰' },
@@ -176,18 +229,18 @@ export default function HomeScreen() {
   );
 
   const PropertyCard = ({ property }: { property: Places }) => {
-    // Función auxiliar para obtener precio estimado
-    const getEstimatedPrice = (size: number, type: string) => {
-      const basePrice = type === 'departamento' ? 150 : 120; // precio por m²
-      return Math.round(size * basePrice);
-    };
-
     // Función auxiliar para determinar disponibilidad
     const isAvailable = typeof property.status === 'string' 
       ? property.status === 'disponible' 
       : property.status?.status === 'disponible';
     
-    const estimatedPrice = getEstimatedPrice(property.size || 50, property.type?.type || 'departamento');
+    // Usar el precio real de PocketBase
+    const realPrice = property.price || (property as any).monthlyPrice;
+    const displayPrice = realPrice && realPrice > 0 ? realPrice : 'Consultar';
+    
+    // Usar dirección real de PocketBase
+    const realAddress = (property as any).address || (property as any).city || (property as any).neighborhood;
+    const displayLocation = realAddress || 'Ubicación no disponible';
     
     return (
       <TouchableOpacity 
@@ -208,16 +261,28 @@ export default function HomeScreen() {
           )}
           {isAvailable && (
             <View style={styles.ratingBadge}>
-              <Text style={styles.ratingText}>⭐ 4.5</Text>
+              <Text style={styles.ratingText}>⭐ Nuevo</Text>
             </View>
           )}
+          {/* Botón de favoritos */}
+          <View style={styles.favoriteButtonContainer}>
+            <FavoriteButton 
+              propertyId={property.id} 
+              size={20}
+              onToggle={(isFavorite) => {
+                console.log(`Property ${property.id} ${isFavorite ? 'added to' : 'removed from'} favorites`);
+              }}
+            />
+          </View>
         </View>
         <View style={styles.propertyInfo}>
           <Text style={styles.propertyTitle}>{property.title}</Text>
-          <Text style={styles.propertyLocation}>📍 {property.location?.lat ? 'Comayagua' : 'Ubicación no disponible'}</Text>
-          <Text style={styles.propertyDistance}>🚶‍♂️ ~1.5 km del campus</Text>
+          <Text style={styles.propertyLocation}>📍 {displayLocation}</Text>
+          <Text style={styles.propertyDistance}>🏠 {property.type?.type || 'Tipo no especificado'}</Text>
           <View style={styles.propertyDetails}>
-            <Text style={styles.propertyPrice}>L. {estimatedPrice.toLocaleString()}/mes</Text>
+            <Text style={styles.propertyPrice}>
+              {typeof displayPrice === 'number' ? `L. ${displayPrice.toLocaleString()}/mes` : displayPrice}
+            </Text>
             <Text style={styles.propertyBedrooms}>📐 {property.size || 0} m²</Text>
           </View>
         </View>
@@ -243,8 +308,8 @@ export default function HomeScreen() {
               <Text style={styles.username}>{user?.name || user?.email || 'Usuario'}</Text>
             </View>
             <View style={styles.headerActions}>
-              <TouchableOpacity style={styles.documentsButton} onPress={handleDocumentsPress}>
-                <Ionicons name="document-text-outline" size={24} color={Colors.primary} />
+              <TouchableOpacity style={styles.favoritesButton} onPress={() => navigation.navigate('Favorites')}>
+                <Ionicons name="heart" size={20} color={Colors.white} />
               </TouchableOpacity>
               <TouchableOpacity style={styles.profileButton} onPress={handleProfilePress}>
                 <Image
@@ -430,6 +495,13 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
     color: Colors.white,
   },
+  favoritesButton: {
+    backgroundColor: Colors.white + '20',
+    borderRadius: 20,
+    padding: Sizes.sm,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   profileButton: {
     backgroundColor: Colors.white + '20',
     borderRadius: 25,
@@ -613,6 +685,12 @@ const styles = StyleSheet.create({
     fontSize: Sizes.fontXS,
     color: Colors.white,
     fontWeight: '600',
+  },
+  favoriteButtonContainer: {
+    position: 'absolute',
+    top: Sizes.sm,
+    left: Sizes.sm,
+    zIndex: 10,
   },
   propertyInfo: {
     padding: Sizes.md,

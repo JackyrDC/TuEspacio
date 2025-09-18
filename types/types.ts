@@ -47,6 +47,7 @@ interface Places{
     owner: User
     location: Geopoint
     size: number
+    price: number // Campo de precio agregado
     photos: string[]
     created: Date
     updated: Date
@@ -71,14 +72,20 @@ interface Contract{
     updated: Date
 }
 
-interface UserDocument {
+interface Favorites{
     id: string
-    user: string 
-    DNI?: string 
-    studentCarnet?: string 
-    proofOfIncome?: string 
+    user: User
+    places: Places // Cambiar de 'property' a 'places' para coincidir con PocketBase
     created: Date
     updated: Date
+}
+
+interface Meets{
+    id: string
+    owner: User
+    client: User
+    property: Places
+    date: Date
 }
 
 export type{
@@ -86,10 +93,11 @@ export type{
     Places,
     Places as Property, // Agregar alias para compatibilidad
     Contract,
-    UserDocument,
     Geopoint,
     UserRoles,
     ContractStatus,
     PlaceStatus,
-    PlaceTypes
+    PlaceTypes,
+    Meets,
+    Favorites
 }

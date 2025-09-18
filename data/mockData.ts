@@ -126,6 +126,7 @@ export const mockProperties: Places[] = [
     owner: mockOwners[0],
     location: { lat: 14.0723, lng: -87.1921 },
     size: 65,
+    price: 8500,
     photos: [],
     created: new Date('2024-08-15'),
     updated: new Date('2024-09-10')
@@ -139,6 +140,7 @@ export const mockProperties: Places[] = [
     owner: mockOwners[1],
     location: { lat: 14.0899, lng: -87.2072 },
     size: 25,
+    price: 3500,
     photos: [],
     created: new Date('2024-08-20'),
     updated: new Date('2024-09-12')
@@ -152,6 +154,7 @@ export const mockProperties: Places[] = [
     owner: mockOwners[2],
     location: { lat: 14.0812, lng: -87.1734 },
     size: 30,
+    price: 4500,
     photos: [],
     created: new Date('2024-07-30'),
     updated: new Date('2024-09-08')
@@ -165,6 +168,7 @@ export const mockProperties: Places[] = [
     owner: mockOwners[3],
     location: { lat: 14.0739, lng: -87.1872 },
     size: 85,
+    price: 15000,
     photos: [],
     created: new Date('2024-08-05'),
     updated: new Date('2024-09-14')
@@ -178,6 +182,7 @@ export const mockProperties: Places[] = [
     owner: mockOwners[4],
     location: { lat: 14.0945, lng: -87.1823 },
     size: 20,
+    price: 6000,
     photos: [],
     created: new Date('2024-08-25'),
     updated: new Date('2024-09-11')
@@ -191,6 +196,7 @@ export const mockProperties: Places[] = [
     owner: mockOwners[5],
     location: { lat: 14.1045, lng: -87.1956 },
     size: 95,
+    price: 12000,
     photos: [],
     created: new Date('2024-07-18'),
     updated: new Date('2024-09-13')
@@ -204,6 +210,7 @@ export const mockProperties: Places[] = [
     owner: mockOwners[0],
     location: { lat: 14.0722, lng: -87.2067 },
     size: 35,
+    price: 5500,
     photos: [],
     created: new Date('2024-09-01'),
     updated: new Date('2024-09-15')
@@ -217,6 +224,7 @@ export const mockProperties: Places[] = [
     owner: mockOwners[1],
     location: { lat: 14.0634, lng: -87.1789 },
     size: 40,
+    price: 7000,
     photos: [],
     created: new Date('2024-08-10'),
     updated: new Date('2024-09-09')
@@ -230,6 +238,7 @@ export const mockProperties: Places[] = [
     owner: mockOwners[2],
     location: { lat: 14.0889, lng: -87.1734 },
     size: 55,
+    price: 11000,
     photos: [],
     created: new Date('2024-08-28'),
     updated: new Date('2024-09-14')
@@ -243,6 +252,7 @@ export const mockProperties: Places[] = [
     owner: mockOwners[3],
     location: { lat: 14.0756, lng: -87.1845 },
     size: 18,
+    price: 2500,
     photos: [],
     created: new Date('2024-09-05'),
     updated: new Date('2024-09-12')
@@ -256,6 +266,7 @@ export const mockProperties: Places[] = [
     owner: mockOwners[4],
     location: { lat: 14.0823, lng: -87.1923 },
     size: 72,
+    price: 13500,
     photos: [],
     created: new Date('2024-08-12'),
     updated: new Date('2024-09-10')
@@ -269,6 +280,7 @@ export const mockProperties: Places[] = [
     owner: mockOwners[5],
     location: { lat: 14.0695, lng: -87.2034 },
     size: 45,
+    price: 8000,
     photos: [],
     created: new Date('2024-07-25'),
     updated: new Date('2024-09-07')

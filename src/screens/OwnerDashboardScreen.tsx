@@ -3,13 +3,13 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
   ScrollView,
   TouchableOpacity,
   Alert,
   RefreshControl,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation, NavigationProp } from '@react-navigation/native';
 import { Colors, Sizes } from '../constants/Colors';
@@ -29,14 +29,11 @@ export default function OwnerDashboardScreen() {
     monthlyRevenue: 0,
   });
 
-  // Simular carga de datos del propietario
   useEffect(() => {
     loadOwnerData();
   }, []);
 
   const loadOwnerData = async () => {
-    // TODO: Integrar con servicios reales
-    // Simular datos por ahora
     setStats({
       totalProperties: 3,
       availableProperties: 1,
@@ -160,7 +157,7 @@ export default function OwnerDashboardScreen() {
             />
             <StatCard 
               title="Ingresos" 
-              value={`L.${stats.monthlyRevenue.toLocaleString()}`}
+              value={`L.${(stats.monthlyRevenue || 0).toLocaleString()}`}
               subtitle="Este mes"
               color="#FF6B6B"
             />

@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
   ScrollView,
   KeyboardAvoidingView,
@@ -12,6 +11,7 @@ import {
   Image,
   TouchableOpacity,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, Sizes } from '../constants/Colors';
 import CustomInput from '../components/CustomInput';
 import CustomButton from '../components/CustomButton';
@@ -40,7 +40,6 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
 
-  // Validaciones
   const validateEmail = (email: string) => {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
@@ -49,21 +48,18 @@ export default function LoginScreen({ onLoginSuccess }: LoginScreenProps) {
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
-    // Email
     if (!formData.email) {
       newErrors.email = 'El email es requerido';
     } else if (!validateEmail(formData.email)) {
       newErrors.email = 'Ingresa un email válido';
     }
 
-    // Password
     if (!formData.password) {
       newErrors.password = 'La contraseña es requerida';
     } else if (formData.password.length < 6) {
       newErrors.password = 'La contraseña debe tener al menos 6 caracteres';
     }
 
-    // Registro específico
     if (!isLogin) {
       if (!formData.name) {
         newErrors.name = 'El nombre es requerido';

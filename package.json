@@ -24,6 +24,7 @@
     "pocketbase": "^0.26.2",
     "react": "19.1.0",
     "react-native": "0.81.4",
+    "react-native-maps": "^1.26.6",
     "react-native-reanimated": "^4.1.0",
     "react-native-safe-area-context": "^5.6.1",
     "react-native-screens": "^4.16.0",
@@ -31,6 +32,7 @@
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
+    "@types/react-native-maps": "^0.24.1",
     "typescript": "~5.9.2"
   },
   "private": true

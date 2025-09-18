@@ -16,8 +16,31 @@ const pb = new pocketbase(getBaseUrl());
 
 // Configurar timeouts para evitar esperas largas
 pb.beforeSend = function (url, options) {
-  options.timeout = 10000; // 10 segundos timeout
+  // Agregar logs para debugging
+  console.log('🌐 PocketBase request:', url);
+  
+  options.timeout = 15000; // 15 segundos timeout
+  options.headers = {
+    ...options.headers,
+    'Content-Type': 'application/json',
+  };
+  
   return { url, options };
+};
+
+// Manejar errores de respuesta
+pb.afterSend = function (response, data) {
+  if (!response.ok) {
+    console.error('❌ PocketBase response error:', {
+      status: response.status,
+      statusText: response.statusText,
+      data: data
+    });
+  } else {
+    console.log('✅ PocketBase response success:', response.status);
+  }
+  
+  return data;
 };
 
 export default pb;

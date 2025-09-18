@@ -4,48 +4,35 @@ import {
   Text,
   StyleSheet,
   SafeAreaView,
-  StatusBar,
   ScrollView,
   TouchableOpacity,
-  RefreshControl,
-  Image,
-  Linking,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { Colors, Sizes } from '../constants/Colors';
-import { useAuth } from '../context/AuthContext';
-import { userDocumentsService } from '../../services/userDocuments.service';
+
+type ApplicationStatus = 'pending' | 'approved' | 'rejected' | 'interview';
+type ApplicationFilter = 'all' | 'pending' | 'approved' | 'rejected' | 'interview';
 
 interface Application {
   id: string;
   tenantId: string;
   tenantName: string;
-  tenantPhone: string;
   tenantEmail: string;
   propertyId: string;
   propertyTitle: string;
-  status: 'pending' | 'approved' | 'rejected' | 'interviewed';
+  status: ApplicationStatus;
   message: string;
   appliedAt: string;
-  interviewDate?: string;
-}
-
-interface DocumentStatus {
-  DNI: boolean;
-  studentCarnet: boolean;
-  proofOfIncome: boolean;
-  isComplete: boolean;
 }
 
 export default function ApplicationsManagementScreen() {
   const navigation = useNavigation();
-  const { user } = useAuth();
   const [applications, setApplications] = useState<Application[]>([]);
-  const [documentsStatus, setDocumentsStatus] = useState<{[key: string]: DocumentStatus}>({});
+  const [filter, setFilter] = useState<ApplicationFilter>('all');
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const [filter, setFilter] = useState<'all' | 'pending' | 'approved' | 'rejected' | 'interviewed'>('all');
 
   useEffect(() => {
     loadApplications();
@@ -53,171 +40,76 @@ export default function ApplicationsManagementScreen() {
 
   const loadApplications = async () => {
     try {
-      // TODO: Integrar con servicio de aplicaciones
-      // Datos de ejemplo
+      setLoading(true);
+      
+      // Datos mock para el MVP
       const mockApplications: Application[] = [
         {
-          id: '1',
+          id: 'app1',
           tenantId: 'tenant1',
-          tenantName: 'María González',
-          tenantPhone: '+504 9876-5432',
-          tenantEmail: 'maria.gonzalez@email.com',
+          tenantName: 'María García',
+          tenantEmail: 'maria.garcia@email.com',
           propertyId: 'prop1',
-          propertyTitle: 'Apartamento cerca de UNAH',
+          propertyTitle: 'Apartamento cerca UNAH',
           status: 'pending',
-          message: 'Hola! Soy estudiante de medicina en la UNAH y estoy buscando un lugar cómodo y cerca de la universidad. Tengo referencias de trabajos anteriores y puedo pagar puntualmente.',
-          appliedAt: '2024-01-20T10:30:00Z',
+          message: 'Hola, soy estudiante de medicina en la UNAH. Me interesa mucho el apartamento.',
+          appliedAt: '2024-01-20T14:30:00Z',
         },
         {
-          id: '2',
+          id: 'app2',
           tenantId: 'tenant2',
-          tenantName: 'Carlos Ruiz',
-          tenantPhone: '+504 8765-4321',
-          tenantEmail: 'carlos.ruiz@email.com',
+          tenantName: 'Carlos Rodríguez',
+          tenantEmail: 'carlos.rodriguez@email.com',
           propertyId: 'prop1',
-          propertyTitle: 'Apartamento cerca de UNAH',
-          status: 'interviewed',
-          message: 'Trabajo en una empresa de tecnología y busco un lugar tranquilo. Tengo estabilidad laboral y excelentes referencias.',
-          appliedAt: '2024-01-18T14:15:00Z',
-          interviewDate: '2024-01-22T16:00:00Z',
+          propertyTitle: 'Apartamento cerca UNAH',
+          status: 'interview',
+          message: 'Trabajo como profesional en el centro. Busco un lugar tranquilo.',
+          appliedAt: '2024-01-19T10:15:00Z',
         },
         {
-          id: '3',
+          id: 'app3',
           tenantId: 'tenant3',
           tenantName: 'Ana Morales',
-          tenantPhone: '+504 7654-3210',
           tenantEmail: 'ana.morales@email.com',
           propertyId: 'prop2',
           propertyTitle: 'Habitación amueblada',
           status: 'approved',
-          message: 'Soy profesional trabajando en el centro de Tegucigalpa. Busco algo cerca de mi trabajo.',
+          message: 'Soy profesional trabajando en el centro de Tegucigalpa.',
           appliedAt: '2024-01-15T09:20:00Z',
         },
       ];
       
       setApplications(mockApplications);
-      
-      // Cargar estado de documentos para cada inquilino
-      const statusMap: {[key: string]: DocumentStatus} = {};
-      for (const application of mockApplications) {
-        try {
-          const userDocuments = await userDocumentsService.getUserDocuments(application.tenantId);
-          statusMap[application.tenantId] = userDocumentsService.getDocumentStatus(userDocuments);
-        } catch (error) {
-          // Si no se pueden cargar los documentos, usar estado por defecto
-          statusMap[application.tenantId] = {
-            DNI: false,
-            studentCarnet: false,
-            proofOfIncome: false,
-            isComplete: false,
-          };
-        }
-      }
-      setDocumentsStatus(statusMap);
-      
     } catch (error) {
       console.error('Error loading applications:', error);
+      Alert.alert('Error', 'No se pudieron cargar las solicitudes');
     } finally {
       setLoading(false);
     }
   };
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadApplications();
-    setRefreshing(false);
-  };
-
-  const handleApproveApplication = (applicationId: string) => {
-    setApplications(prev =>
-      prev.map(app => 
-        app.id === applicationId 
-          ? { ...app, status: 'approved' }
-          : app
-      )
-    );
-  };
-
-  const handleRejectApplication = (applicationId: string) => {
-    setApplications(prev =>
-      prev.map(app => 
-        app.id === applicationId 
-          ? { ...app, status: 'rejected' }
-          : app
-      )
-    );
-  };
-
-  const handleScheduleInterview = (application: Application) => {
-    setApplications(prev =>
-      prev.map(app => 
-        app.id === application.id 
-          ? { ...app, status: 'interviewed', interviewDate: new Date().toISOString() }
-          : app
-      )
-    );
-  };
-
-  const handleViewDocuments = async (application: Application) => {
+  const updateApplicationStatus = async (applicationId: string, newStatus: ApplicationStatus) => {
     try {
-      const userDocuments = await userDocumentsService.getUserDocuments(application.tenantId);
-      const status = userDocumentsService.getDocumentStatus(userDocuments);
+      // Simular actualización en servidor
+      setApplications(prev => 
+        prev.map(app => 
+          app.id === applicationId 
+            ? { ...app, status: newStatus }
+            : app
+        )
+      );
       
-      // Actualizar el estado local
-      setDocumentsStatus(prev => ({
-        ...prev,
-        [application.tenantId]: status
-      }));
+      const statusMessages: Record<ApplicationStatus, string> = {
+        approved: 'Solicitud aprobada',
+        rejected: 'Solicitud rechazada',
+        interview: 'Entrevista programada',
+        pending: 'Estado actualizado'
+      };
       
-      // TODO: Navegar a pantalla de documentos o mostrar modal
-      console.log('Documentos de', application.tenantName, status);
+      Alert.alert('Estado actualizado', statusMessages[newStatus]);
     } catch (error) {
-      console.error('Error loading documents:', error);
-    }
-  };
-
-  const handleContactTenant = (application: Application) => {
-    // Abrir WhatsApp directamente
-    const whatsappUrl = `whatsapp://send?phone=${application.tenantPhone.replace(/\s+/g, '')}&text=Hola ${application.tenantName}, te contacto sobre tu solicitud para la propiedad "${application.propertyTitle}".`;
-    Linking.openURL(whatsappUrl).catch(() => {
-      // Si WhatsApp no está disponible, abrir enlace web
-      const webWhatsappUrl = `https://wa.me/${application.tenantPhone.replace(/\s+/g, '')}?text=Hola ${application.tenantName}, te contacto sobre tu solicitud para la propiedad "${application.propertyTitle}".`;
-      Linking.openURL(webWhatsappUrl);
-    });
-  };
-
-  const handleCallTenant = (application: Application) => {
-    const phoneUrl = `tel:${application.tenantPhone}`;
-    Linking.openURL(phoneUrl);
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending': return Colors.warning;
-      case 'approved': return Colors.success;
-      case 'rejected': return Colors.error;
-      case 'interviewed': return Colors.primary;
-      default: return Colors.textSecondary;
-    }
-  };
-
-  const getStatusText = (status: string) => {
-    switch (status) {
-      case 'pending': return 'Pendiente';
-      case 'approved': return 'Aprobada';
-      case 'rejected': return 'Rechazada';
-      case 'interviewed': return 'Entrevistada';
-      default: return status;
-    }
-  };
-
-  const getStatusIcon = (status: string) => {
-    switch (status) {
-      case 'pending': return 'time-outline';
-      case 'approved': return 'checkmark-circle-outline';
-      case 'rejected': return 'close-circle-outline';
-      case 'interviewed': return 'people-outline';
-      default: return 'ellipse-outline';
+      console.error('Error updating application status:', error);
+      Alert.alert('Error', 'No se pudo actualizar el estado');
     }
   };
 
@@ -225,250 +117,148 @@ export default function ApplicationsManagementScreen() {
     filter === 'all' || app.status === filter
   );
 
-  const renderFilterTabs = () => (
-    <ScrollView 
-      horizontal 
-      showsHorizontalScrollIndicator={false}
-      style={styles.filterContainer}
-      contentContainerStyle={styles.filterContent}
-    >
-      {[
-        { key: 'all', label: 'Todas', count: applications.length },
-        { key: 'pending', label: 'Pendientes', count: applications.filter(a => a.status === 'pending').length },
-        { key: 'interviewed', label: 'Entrevistadas', count: applications.filter(a => a.status === 'interviewed').length },
-        { key: 'approved', label: 'Aprobadas', count: applications.filter(a => a.status === 'approved').length },
-        { key: 'rejected', label: 'Rechazadas', count: applications.filter(a => a.status === 'rejected').length },
-      ].map((tab) => (
-        <TouchableOpacity
-          key={tab.key}
-          style={[
-            styles.filterTab,
-            filter === tab.key && styles.filterTabActive
-          ]}
-          onPress={() => setFilter(tab.key as any)}
-        >
-          <Text style={[
-            styles.filterTabText,
-            filter === tab.key && styles.filterTabTextActive
-          ]}>
-            {tab.label} ({tab.count})
-          </Text>
-        </TouchableOpacity>
-      ))}
-    </ScrollView>
-  );
+  const getStatusColor = (status: ApplicationStatus) => {
+    switch (status) {
+      case 'pending': return '#FFA500';
+      case 'approved': return '#4CAF50';
+      case 'rejected': return '#F44336';
+      case 'interview': return '#2196F3';
+      default: return '#757575';
+    }
+  };
 
-  const renderApplicationCard = (application: Application) => (
-    <View key={application.id} style={styles.applicationCard}>
-      {/* Header */}
-      <View style={styles.applicationHeader}>
-        <View style={styles.tenantInfo}>
-          <View style={styles.avatarContainer}>
-            <Text style={styles.avatarText}>
-              {application.tenantName.split(' ').map(n => n[0]).join('').toUpperCase()}
-            </Text>
-          </View>
-          <View style={styles.tenantDetails}>
-            <Text style={styles.tenantName}>{application.tenantName}</Text>
-            <Text style={styles.propertyTitle} numberOfLines={1}>
-              Para: {application.propertyTitle}
-            </Text>
-            <Text style={styles.applicationDate}>
-              Solicitó: {new Date(application.appliedAt).toLocaleDateString('es-HN', {
-                day: 'numeric',
-                month: 'short',
-                hour: '2-digit',
-                minute: '2-digit'
-              })}
-            </Text>
-          </View>
+  const getStatusText = (status: ApplicationStatus) => {
+    switch (status) {
+      case 'pending': return 'Pendiente';
+      case 'approved': return 'Aprobada';
+      case 'rejected': return 'Rechazada';
+      case 'interview': return 'Entrevista';
+      default: return status;
+    }
+  };
+
+  const filters: { key: ApplicationFilter; label: string; count: number }[] = [
+    { key: 'all', label: 'Todas', count: applications.length },
+    { key: 'pending', label: 'Pendientes', count: applications.filter(a => a.status === 'pending').length },
+    { key: 'interview', label: 'Entrevistas', count: applications.filter(a => a.status === 'interview').length },
+    { key: 'approved', label: 'Aprobadas', count: applications.filter(a => a.status === 'approved').length },
+    { key: 'rejected', label: 'Rechazadas', count: applications.filter(a => a.status === 'rejected').length },
+  ];
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={Colors.primary} />
+          <Text style={styles.loadingText}>Cargando solicitudes...</Text>
         </View>
-        
-        <View style={[styles.statusBadge, { backgroundColor: getStatusColor(application.status) + '20' }]}>
-          <Ionicons 
-            name={getStatusIcon(application.status) as any} 
-            size={16} 
-            color={getStatusColor(application.status)} 
-          />
-          <Text style={[styles.statusText, { color: getStatusColor(application.status) }]}>
-            {getStatusText(application.status)}
-          </Text>
-        </View>
-      </View>
-
-      {/* Message */}
-      <View style={styles.messageContainer}>
-        <Text style={styles.messageLabel}>Mensaje:</Text>
-        <Text style={styles.messageText} numberOfLines={3}>
-          {application.message}
-        </Text>
-      </View>
-
-      {/* Documents Status */}
-      <View style={styles.documentsContainer}>
-        <Text style={styles.documentsLabel}>Documentos:</Text>
-        <View style={styles.documentsStatus}>
-          {(() => {
-            const status = documentsStatus[application.tenantId] || {
-              DNI: false,
-              studentCarnet: false,
-              proofOfIncome: false,
-              isComplete: false,
-            };
-            
-            return (
-              <>
-                <View style={styles.documentItem}>
-                  <Ionicons 
-                    name={status.DNI ? "checkmark-circle" : "time-outline"} 
-                    size={16} 
-                    color={status.DNI ? Colors.success : Colors.warning} 
-                  />
-                  <Text style={styles.documentText}>Cédula/DNI</Text>
-                </View>
-                <View style={styles.documentItem}>
-                  <Ionicons 
-                    name={status.studentCarnet ? "checkmark-circle" : "time-outline"} 
-                    size={16} 
-                    color={status.studentCarnet ? Colors.success : Colors.warning} 
-                  />
-                  <Text style={styles.documentText}>Carnet Estudiantil</Text>
-                </View>
-                <View style={styles.documentItem}>
-                  <Ionicons 
-                    name={status.proofOfIncome ? "checkmark-circle" : "time-outline"} 
-                    size={16} 
-                    color={status.proofOfIncome ? Colors.success : Colors.warning} 
-                  />
-                  <Text style={styles.documentText}>Comprobante Ingresos</Text>
-                </View>
-              </>
-            );
-          })()}
-        </View>
-      </View>
-
-      {/* Interview Date */}
-      {application.interviewDate && (
-        <View style={styles.interviewContainer}>
-          <Ionicons name="calendar-outline" size={16} color={Colors.primary} />
-          <Text style={styles.interviewText}>
-            Entrevista: {new Date(application.interviewDate).toLocaleDateString('es-HN', {
-              day: 'numeric',
-              month: 'short',
-              hour: '2-digit',
-              minute: '2-digit'
-            })}
-          </Text>
-        </View>
-      )}
-
-      {/* Actions */}
-      <View style={styles.actionsContainer}>
-        <TouchableOpacity
-          style={[styles.actionButton, styles.contactButton]}
-          onPress={() => handleContactTenant(application)}
-        >
-          <Ionicons name="logo-whatsapp" size={18} color={Colors.success} />
-          <Text style={styles.contactButtonText}>WhatsApp</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.actionButton, styles.callButton]}
-          onPress={() => handleCallTenant(application)}
-        >
-          <Ionicons name="call-outline" size={18} color={Colors.primary} />
-          <Text style={styles.callButtonText}>Llamar</Text>
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={[styles.actionButton, styles.documentsButton]}
-          onPress={() => handleViewDocuments(application)}
-        >
-          <Ionicons name="document-text-outline" size={18} color={Colors.textSecondary} />
-        </TouchableOpacity>
-
-        {application.status === 'pending' && (
-          <>
-            <TouchableOpacity
-              style={[styles.actionButton, styles.interviewButton]}
-              onPress={() => handleScheduleInterview(application)}
-            >
-              <Ionicons name="people-outline" size={18} color={Colors.primary} />
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.actionButton, styles.approveButton]}
-              onPress={() => handleApproveApplication(application.id)}
-            >
-              <Ionicons name="checkmark" size={18} color={Colors.success} />
-            </TouchableOpacity>
-            
-            <TouchableOpacity
-              style={[styles.actionButton, styles.rejectButton]}
-              onPress={() => handleRejectApplication(application.id)}
-            >
-              <Ionicons name="close" size={18} color={Colors.error} />
-            </TouchableOpacity>
-          </>
-        )}
-      </View>
-    </View>
-  );
-
-  const renderEmptyState = () => (
-    <View style={styles.emptyContainer}>
-      <Ionicons name="document-text-outline" size={64} color={Colors.textSecondary} />
-      <Text style={styles.emptyTitle}>No hay solicitudes</Text>
-      <Text style={styles.emptySubtitle}>
-        Cuando los inquilinos soliciten tus propiedades, aparecerán aquí para que las puedas revisar.
-      </Text>
-    </View>
-  );
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
-      <StatusBar barStyle="light-content" backgroundColor={Colors.primary} />
-      
-      {/* Header */}
       <View style={styles.header}>
         <TouchableOpacity 
-          style={styles.backButton} 
+          style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <Ionicons name="arrow-back" size={24} color={Colors.white} />
+          <Ionicons name="arrow-back" size={24} color="#333" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Solicitudes</Text>
-        <View style={styles.headerRight} />
+        <Text style={styles.title}>Gestión de Solicitudes</Text>
+        <View style={styles.placeholder} />
       </View>
 
-      {/* Filter Tabs */}
-      {applications.length > 0 && renderFilterTabs()}
-
-      {/* Content */}
-      <ScrollView 
-        style={styles.content}
-        refreshControl={
-          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
-        }
-        showsVerticalScrollIndicator={false}
-      >
-        {loading ? (
-          <View style={styles.loadingContainer}>
-            <Text style={styles.loadingText}>Cargando solicitudes...</Text>
-          </View>
-        ) : filteredApplications.length === 0 ? (
-          filter === 'all' ? renderEmptyState() : (
-            <View style={styles.emptyFilterContainer}>
-              <Text style={styles.emptyFilterText}>
-                No hay solicitudes {getStatusText(filter).toLowerCase()}
+      <ScrollView style={styles.content}>
+        {/* Filtros */}
+        <ScrollView 
+          horizontal 
+          showsHorizontalScrollIndicator={false}
+          style={styles.filtersContainer}
+        >
+          {filters.map((filterItem) => (
+            <TouchableOpacity
+              key={filterItem.key}
+              style={[
+                styles.filterButton,
+                filter === filterItem.key && styles.filterButtonActive
+              ]}
+              onPress={() => setFilter(filterItem.key)}
+            >
+              <Text style={[
+                styles.filterText,
+                filter === filterItem.key && styles.filterTextActive
+              ]}>
+                {filterItem.label} ({filterItem.count})
               </Text>
-            </View>
-          )
-        ) : (
-          <View style={styles.applicationsList}>
-            {filteredApplications.map(renderApplicationCard)}
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+
+        {/* Lista de solicitudes */}
+        {filteredApplications.length === 0 ? (
+          <View style={styles.emptyState}>
+            <Ionicons name="document-text-outline" size={64} color="#ccc" />
+            <Text style={styles.emptyTitle}>No hay solicitudes</Text>
+            <Text style={styles.emptyText}>
+              {filter === 'all' 
+                ? 'Aún no has recibido solicitudes para tus propiedades'
+                : `No hay solicitudes ${getStatusText(filter as ApplicationStatus).toLowerCase()}`
+              }
+            </Text>
           </View>
+        ) : (
+          filteredApplications.map((application) => (
+            <View key={application.id} style={styles.applicationCard}>
+              <View style={styles.applicationHeader}>
+                <View style={styles.applicationInfo}>
+                  <Text style={styles.tenantName}>{application.tenantName}</Text>
+                  <Text style={styles.propertyTitle}>{application.propertyTitle}</Text>
+                </View>
+                <View style={[
+                  styles.statusBadge,
+                  { backgroundColor: getStatusColor(application.status) }
+                ]}>
+                  <Text style={styles.statusText}>
+                    {getStatusText(application.status)}
+                  </Text>
+                </View>
+              </View>
+
+              <Text style={styles.applicationMessage}>{application.message}</Text>
+              
+              <View style={styles.applicationFooter}>
+                <Text style={styles.applicationDate}>
+                  {new Date(application.appliedAt).toLocaleDateString('es-ES')}
+                </Text>
+                
+                {application.status === 'pending' && (
+                  <View style={styles.actionButtons}>
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.rejectButton]}
+                      onPress={() => updateApplicationStatus(application.id, 'rejected')}
+                    >
+                      <Text style={styles.rejectButtonText}>Rechazar</Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.interviewButton]}
+                      onPress={() => updateApplicationStatus(application.id, 'interview')}
+                    >
+                      <Text style={styles.interviewButtonText}>Entrevistar</Text>
+                    </TouchableOpacity>
+                    
+                    <TouchableOpacity
+                      style={[styles.actionButton, styles.approveButton]}
+                      onPress={() => updateApplicationStatus(application.id, 'approved')}
+                    >
+                      <Text style={styles.approveButtonText}>Aprobar</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+              </View>
+            </View>
+          ))
         )}
       </ScrollView>
     </SafeAreaView>
@@ -478,58 +268,28 @@ export default function ApplicationsManagementScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
+    backgroundColor: '#f8f9fa',
   },
   header: {
-    backgroundColor: Colors.primary,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: Sizes.lg,
-    paddingVertical: Sizes.md,
-    elevation: 4,
-    shadowColor: Colors.shadowColor,
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    backgroundColor: 'white',
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
   },
   backButton: {
-    padding: Sizes.xs,
+    padding: 5,
   },
-  headerTitle: {
-    fontSize: Sizes.fontLG,
+  title: {
+    fontSize: 18,
     fontWeight: 'bold',
-    color: Colors.white,
+    color: '#333',
   },
-  headerRight: {
-    width: 40,
-  },
-  filterContainer: {
-    backgroundColor: Colors.white,
-    borderBottomWidth: 1,
-    borderBottomColor: Colors.lightGray,
-  },
-  filterContent: {
-    paddingHorizontal: Sizes.lg,
-    paddingVertical: Sizes.md,
-  },
-  filterTab: {
-    paddingHorizontal: Sizes.lg,
-    paddingVertical: Sizes.sm,
-    marginRight: Sizes.md,
-    borderRadius: Sizes.borderRadius * 2,
-    backgroundColor: Colors.background,
-  },
-  filterTabActive: {
-    backgroundColor: Colors.primary,
-  },
-  filterTabText: {
-    fontSize: Sizes.fontSM,
-    color: Colors.textSecondary,
-    fontWeight: '500',
-  },
-  filterTabTextActive: {
-    color: Colors.white,
+  placeholder: {
+    width: 34,
   },
   content: {
     flex: 1,
@@ -538,232 +298,149 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: Sizes.xl * 2,
   },
   loadingText: {
-    fontSize: Sizes.fontMD,
-    color: Colors.textSecondary,
+    marginTop: 10,
+    fontSize: 16,
+    color: '#666',
   },
-  applicationsList: {
-    padding: Sizes.lg,
+  filtersContainer: {
+    backgroundColor: 'white',
+    paddingVertical: 15,
+    paddingHorizontal: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#eee',
+  },
+  filterButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    marginRight: 10,
+    borderRadius: 20,
+    backgroundColor: '#f0f0f0',
+  },
+  filterButtonActive: {
+    backgroundColor: Colors.primary,
+  },
+  filterText: {
+    fontSize: 14,
+    color: '#666',
+    fontWeight: '500',
+  },
+  filterTextActive: {
+    color: 'white',
   },
   applicationCard: {
-    backgroundColor: Colors.white,
-    borderRadius: Sizes.borderRadius,
-    padding: Sizes.lg,
-    marginBottom: Sizes.lg,
-    elevation: 2,
-    shadowColor: Colors.shadowColor,
-    shadowOffset: { width: 0, height: 1 },
+    backgroundColor: 'white',
+    marginHorizontal: 20,
+    marginVertical: 8,
+    padding: 16,
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
-    shadowRadius: 3,
+    shadowRadius: 4,
+    elevation: 3,
   },
   applicationHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: Sizes.md,
+    marginBottom: 12,
   },
-  tenantInfo: {
-    flexDirection: 'row',
+  applicationInfo: {
     flex: 1,
-    marginRight: Sizes.md,
-  },
-  avatarContainer: {
-    width: 50,
-    height: 50,
-    borderRadius: 25,
-    backgroundColor: Colors.primary,
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: Sizes.md,
-  },
-  avatarText: {
-    fontSize: Sizes.fontLG,
-    fontWeight: 'bold',
-    color: Colors.white,
-  },
-  tenantDetails: {
-    flex: 1,
+    marginRight: 12,
   },
   tenantName: {
-    fontSize: Sizes.fontLG,
+    fontSize: 16,
     fontWeight: 'bold',
-    color: Colors.textPrimary,
-    marginBottom: Sizes.xs,
+    color: '#333',
+    marginBottom: 4,
   },
   propertyTitle: {
-    fontSize: Sizes.fontSM,
-    color: Colors.primary,
-    fontWeight: '600',
-    marginBottom: Sizes.xs,
-  },
-  applicationDate: {
-    fontSize: Sizes.fontXS,
-    color: Colors.textSecondary,
+    fontSize: 14,
+    color: '#666',
   },
   statusBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Sizes.md,
-    paddingVertical: Sizes.xs,
-    borderRadius: Sizes.borderRadius,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
   },
   statusText: {
-    fontSize: Sizes.fontXS,
-    fontWeight: '600',
-    marginLeft: Sizes.xs,
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: 'white',
   },
-  messageContainer: {
-    marginBottom: Sizes.md,
-  },
-  messageLabel: {
-    fontSize: Sizes.fontSM,
-    fontWeight: '600',
-    color: Colors.textPrimary,
-    marginBottom: Sizes.xs,
-  },
-  messageText: {
-    fontSize: Sizes.fontSM,
-    color: Colors.textSecondary,
+  applicationMessage: {
+    fontSize: 14,
+    color: '#666',
     lineHeight: 20,
+    marginBottom: 16,
   },
-  documentsContainer: {
-    marginBottom: Sizes.md,
-  },
-  documentsLabel: {
-    fontSize: Sizes.fontSM,
-    fontWeight: '600',
-    color: Colors.textPrimary,
-    marginBottom: Sizes.xs,
-  },
-  documentsStatus: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-  },
-  documentItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginRight: Sizes.lg,
-    marginBottom: Sizes.xs,
-  },
-  documentText: {
-    fontSize: Sizes.fontXS,
-    color: Colors.textSecondary,
-    marginLeft: Sizes.xs,
-  },
-  interviewContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: Colors.primary + '10',
-    padding: Sizes.sm,
-    borderRadius: Sizes.borderRadius,
-    marginBottom: Sizes.md,
-  },
-  interviewText: {
-    fontSize: Sizes.fontSM,
-    color: Colors.primary,
-    fontWeight: '600',
-    marginLeft: Sizes.xs,
-  },
-  actionsContainer: {
+  applicationFooter: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
   },
-  actionButton: {
+  applicationDate: {
+    fontSize: 12,
+    color: '#999',
+  },
+  actionButtons: {
     flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Sizes.md,
-    paddingVertical: Sizes.sm,
-    borderRadius: Sizes.borderRadius,
+    gap: 8,
+  },
+  actionButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
     borderWidth: 1,
   },
-  contactButton: {
-    borderColor: Colors.success,
-    backgroundColor: Colors.success + '10',
-    flex: 1,
-    marginRight: Sizes.sm,
-    justifyContent: 'center',
+  rejectButton: {
+    borderColor: '#F44336',
+    backgroundColor: 'white',
   },
-  contactButtonText: {
-    fontSize: Sizes.fontSM,
-    color: Colors.success,
-    fontWeight: '600',
-    marginLeft: Sizes.xs,
-  },
-  callButton: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primary + '10',
-    flex: 1,
-    marginRight: Sizes.sm,
-    justifyContent: 'center',
-  },
-  callButtonText: {
-    fontSize: Sizes.fontSM,
-    color: Colors.primary,
-    fontWeight: '600',
-    marginLeft: Sizes.xs,
-  },
-  documentsButton: {
-    borderColor: Colors.textSecondary,
-    backgroundColor: Colors.textSecondary + '10',
-    padding: Sizes.sm,
-    marginRight: Sizes.xs,
-  },
-  documentsButtonText: {
-    fontSize: Sizes.fontSM,
-    color: Colors.textSecondary,
-    fontWeight: '600',
-    marginLeft: Sizes.xs,
+  rejectButtonText: {
+    fontSize: 12,
+    color: '#F44336',
+    fontWeight: '500',
   },
   interviewButton: {
-    borderColor: Colors.primary,
-    backgroundColor: Colors.primary + '10',
-    padding: Sizes.sm,
-    marginRight: Sizes.xs,
+    borderColor: '#2196F3',
+    backgroundColor: 'white',
+  },
+  interviewButtonText: {
+    fontSize: 12,
+    color: '#2196F3',
+    fontWeight: '500',
   },
   approveButton: {
-    borderColor: Colors.success,
-    backgroundColor: Colors.success + '10',
-    padding: Sizes.sm,
-    marginRight: Sizes.xs,
+    borderColor: '#4CAF50',
+    backgroundColor: '#4CAF50',
   },
-  rejectButton: {
-    borderColor: Colors.error,
-    backgroundColor: Colors.error + '10',
-    padding: Sizes.sm,
+  approveButtonText: {
+    fontSize: 12,
+    color: 'white',
+    fontWeight: '500',
   },
-  emptyContainer: {
+  emptyState: {
     flex: 1,
-    justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: Sizes.xl,
-    paddingVertical: Sizes.xl * 2,
+    justifyContent: 'center',
+    paddingHorizontal: 40,
+    paddingVertical: 60,
   },
   emptyTitle: {
-    fontSize: Sizes.fontXL,
+    fontSize: 18,
     fontWeight: 'bold',
-    color: Colors.textPrimary,
-    marginTop: Sizes.lg,
-    marginBottom: Sizes.md,
-    textAlign: 'center',
+    color: '#333',
+    marginTop: 16,
+    marginBottom: 8,
   },
-  emptySubtitle: {
-    fontSize: Sizes.fontMD,
-    color: Colors.textSecondary,
+  emptyText: {
+    fontSize: 14,
+    color: '#666',
     textAlign: 'center',
-    lineHeight: 22,
-  },
-  emptyFilterContainer: {
-    flex: 1,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingVertical: Sizes.xl * 2,
-  },
-  emptyFilterText: {
-    fontSize: Sizes.fontMD,
-    color: Colors.textSecondary,
-    textAlign: 'center',
+    lineHeight: 20,
   },
 });

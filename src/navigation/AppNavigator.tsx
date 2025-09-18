@@ -5,19 +5,18 @@ import HomeScreen from '../screens/HomeScreen';
 import OwnerDashboardScreen from '../screens/OwnerDashboardScreen';
 import AddPropertyScreen from '../screens/AddPropertyScreen';
 import PropertyManagementScreen from '../screens/PropertyManagementScreen';
-import ApplicationsManagementScreen from '../screens/ApplicationsManagementScreen';
-import UserDocumentsScreen from '../screens/UserDocumentsScreen';
 import CompleteProfileScreen from '../screens/CompleteProfileScreen';
 import MapScreen from '../screens/MapScreen';
 import PropertyDetailScreen from '../screens/PropertyDetailScreen';
 import UserProfileScreen from '../screens/UserProfileScreen';
+import FavoritesScreen from '../screens/FavoritesScreen';
 import { useAuth } from '../context/AuthContext';
 import { RootStackParamList } from '../types/navigation';
 
 const Stack = createStackNavigator<RootStackParamList>();
 
 export default function AppNavigator() {
-  const { user, needsProfileCompletion, needsDocumentCompletion, markProfileCompleted, markDocumentsCompleted } = useAuth();
+  const { user, needsProfileCompletion, markProfileCompleted } = useAuth();
   const isOwner = user?.type === 'Propietario';
 
   // Si necesita completar el perfil, mostrar CompleteProfileScreen
@@ -31,21 +30,6 @@ export default function AppNavigator() {
                 onComplete={markProfileCompleted}
                 onSkip={markProfileCompleted}
               />
-            )}
-          </Stack.Screen>
-        </Stack.Navigator>
-      </NavigationContainer>
-    );
-  }
-
-  // Si es inquilino y necesita completar documentos, mostrar UserDocumentsScreen
-  if (needsDocumentCompletion && user?.type === 'Inquilino') {
-    return (
-      <NavigationContainer>
-        <Stack.Navigator screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="UserDocuments">
-            {() => (
-              <UserDocumentsScreen onComplete={markDocumentsCompleted} />
             )}
           </Stack.Screen>
         </Stack.Navigator>
@@ -76,10 +60,6 @@ export default function AppNavigator() {
               component={PropertyManagementScreen}
             />
             <Stack.Screen 
-              name="ApplicationsManagement" 
-              component={ApplicationsManagementScreen}
-            />
-            <Stack.Screen 
               name="Home" 
               component={HomeScreen}
             />
@@ -89,10 +69,6 @@ export default function AppNavigator() {
             <Stack.Screen 
               name="Home" 
               component={HomeScreen}
-            />
-            <Stack.Screen 
-              name="UserDocuments" 
-              component={UserDocumentsScreen}
             />
           </>
         )}
@@ -107,6 +83,10 @@ export default function AppNavigator() {
         <Stack.Screen 
           name="Profile" 
           component={UserProfileScreen}
+        />
+        <Stack.Screen 
+          name="Favorites" 
+          component={FavoritesScreen}
         />
       </Stack.Navigator>
     </NavigationContainer>

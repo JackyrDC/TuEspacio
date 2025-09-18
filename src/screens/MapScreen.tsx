@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
   TouchableOpacity,
   TextInput,
@@ -13,21 +12,30 @@ import {
   Linking,
   Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 import * as Location from 'expo-location';
 import { Colors, Sizes } from '../constants/Colors';
 import placesService from '../../services/places.service';
 import { Places, Geopoint } from '../../types/types';
+import { RootStackParamList } from '../types/navigation';
 
-interface MapScreenProps {
-  navigation?: any;
-}
+type MapScreenRouteProp = RouteProp<RootStackParamList, 'Map'>;
+type MapScreenNavigationProp = StackNavigationProp<RootStackParamList, 'Map'>;
 
-export default function MapScreen({ navigation }: MapScreenProps) {
+export default function MapScreen() {
+  const navigation = useNavigation<MapScreenNavigationProp>();
+  const route = useRoute<MapScreenRouteProp>();
+  const { mode = 'view', initialLocation, onLocationSelect } = route.params || {};
   const [properties, setProperties] = useState<Places[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchText, setSearchText] = useState('');
   const [userLocation, setUserLocation] = useState<Geopoint | null>(null);
   const [locationPermission, setLocationPermission] = useState<boolean>(false);
+  const [selectedLocation, setSelectedLocation] = useState<Geopoint | null>(
+    initialLocation ? { lat: initialLocation.latitude, lng: initialLocation.longitude } : null
+  );
 
   useEffect(() => {
     requestLocationPermission();
@@ -56,6 +64,65 @@ export default function MapScreen({ navigation }: MapScreenProps) {
     }
   };
 
+  const handleLocationSelect = () => {
+    if (mode === 'select') {
+      Alert.alert(
+        'Seleccionar ubicación',
+        'Por favor toca en el mapa donde quieres ubicar tu propiedad',
+        [
+          { text: 'Cancelar', style: 'cancel' },
+          { 
+            text: 'Usar ubicación actual', 
+            onPress: () => useCurrentLocation() 
+          },
+          { 
+            text: 'Seleccionar manualmente', 
+            onPress: () => showLocationPicker() 
+          }
+        ]
+      );
+    }
+  };
+
+  const useCurrentLocation = async () => {
+    if (userLocation && onLocationSelect) {
+      onLocationSelect(userLocation.lat, userLocation.lng, 'Ubicación actual');
+      navigation.goBack();
+    } else {
+      Alert.alert('Error', 'No se pudo obtener tu ubicación actual');
+    }
+  };
+
+  const showLocationPicker = () => {
+    // Para el MVP, simularemos la selección con coordenadas fijas de Tegucigalpa
+    const defaultLocation = {
+      latitude: 14.0723,
+      longitude: -87.2068,
+      address: 'Tegucigalpa, Honduras'
+    };
+
+    Alert.alert(
+      'Ubicación seleccionada',
+      `Se ha seleccionado la ubicación en ${defaultLocation.address}`,
+      [
+        { text: 'Cambiar', style: 'cancel' },
+        { 
+          text: 'Confirmar', 
+          onPress: () => {
+            if (onLocationSelect) {
+              onLocationSelect(
+                defaultLocation.latitude, 
+                defaultLocation.longitude, 
+                defaultLocation.address
+              );
+              navigation.goBack();
+            }
+          }
+        }
+      ]
+    );
+  };
+
   const loadProperties = async () => {
     try {
       setLoading(true);
@@ -70,11 +137,15 @@ export default function MapScreen({ navigation }: MapScreenProps) {
         type: place.type || { type: 'departamento' },
         status: place.status || { status: 'disponible' },
         owner: place.owner || { name: 'Propietario' },
-        location: place.location || { 
+        location: place.location ? {
+          lat: place.location.lat || 14.0723 + (Math.random() - 0.5) * 0.02, 
+          lng: place.location.lon || place.location.lng || -87.6431 + (Math.random() - 0.5) * 0.02  // ← Priorizar "lon" sobre "lng"
+        } : { 
           lat: 14.0723 + (Math.random() - 0.5) * 0.02, 
           lng: -87.6431 + (Math.random() - 0.5) * 0.02 
         },
         size: place.size || 0,
+        price: place.price || place.monthlyPrice || 5000,
         photos: place.photos || [],
         created: place.created,
         updated: place.updated,
@@ -200,7 +271,9 @@ export default function MapScreen({ navigation }: MapScreenProps) {
           <View style={styles.propertyTexts}>
             <Text style={styles.propertyTitle}>{property.title}</Text>
             <Text style={styles.propertyLocation}>
-              📍 {property.location?.lat ? `${property.location.lat.toFixed(4)}, ${property.location.lng.toFixed(4)}` : 'Ubicación no disponible'}
+              📍 {property.location?.lat && property.location?.lng ? 
+                   `${property.location.lat.toFixed(4)}, ${property.location.lng.toFixed(4)}` : 
+                   'Ubicación no disponible'}
             </Text>
           </View>
         </View>
@@ -218,7 +291,7 @@ export default function MapScreen({ navigation }: MapScreenProps) {
       <View style={styles.propertyDetails}>
         <View style={styles.propertyInfo}>
           <Text style={styles.propertyPrice}>
-            L. {getEstimatedPrice(property.size || 50, property.type?.type || 'departamento').toLocaleString()}/mes
+            L. {(property.price || getEstimatedPrice(property.size || 50, property.type?.type || 'departamento')).toLocaleString()}/mes
           </Text>
           <Text style={styles.propertySize}>📐 {property.size || 0} m²</Text>
           {userLocation && (
@@ -238,7 +311,7 @@ export default function MapScreen({ navigation }: MapScreenProps) {
           
           <TouchableOpacity 
             style={styles.detailsButton}
-            onPress={() => navigation?.navigate('PropertyDetail', { propertyId: property.id })}
+            onPress={() => navigation.navigate('PropertyDetail', { propertyId: property.id })}
           >
             <Text style={styles.detailsButtonText}>👁️ Detalles</Text>
           </TouchableOpacity>
@@ -255,7 +328,7 @@ export default function MapScreen({ navigation }: MapScreenProps) {
       <View style={styles.header}>
         <TouchableOpacity 
           style={styles.backButton}
-          onPress={() => navigation?.goBack()}
+          onPress={() => navigation.goBack()}
         >
           <Text style={styles.backIcon}>←</Text>
         </TouchableOpacity>

@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  SafeAreaView,
   StatusBar,
   ScrollView,
   TouchableOpacity,
@@ -13,9 +12,11 @@ import {
   Dimensions,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Colors, Sizes } from '../constants/Colors';
 import { Places } from '../../types/types';
 import placesService from '../../services/places.service';
+import FavoriteButton from '../components/FavoriteButton';
 
 interface PropertyDetailScreenProps {
   navigation?: any;
@@ -32,7 +33,6 @@ export default function PropertyDetailScreen({ navigation, route }: PropertyDeta
   const [property, setProperty] = useState<Places | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [isFavorite, setIsFavorite] = useState(false);
 
   const propertyId = route?.params?.propertyId;
 
@@ -64,11 +64,15 @@ export default function PropertyDetailScreen({ navigation, route }: PropertyDeta
           email: 'juan.perez@email.com',
           phone: '+504 9999-9999'
         },
-        location: propertyData.location || { 
+        location: propertyData.location ? {
+          lat: propertyData.location.lat || 14.0723 + (Math.random() - 0.5) * 0.02, 
+          lng: propertyData.location.lon || propertyData.location.lng || -87.6431 + (Math.random() - 0.5) * 0.02  // ← Priorizar "lon" sobre "lng"
+        } : { 
           lat: 14.0723 + (Math.random() - 0.5) * 0.02, 
           lng: -87.6431 + (Math.random() - 0.5) * 0.02 
         },
         size: propertyData.size || Math.floor(Math.random() * 100) + 50,
+        price: propertyData.price || propertyData.monthlyPrice || 5000,
         photos: propertyData.photos || [],
         created: propertyData.created,
         updated: propertyData.updated,
@@ -100,17 +104,6 @@ export default function PropertyDetailScreen({ navigation, route }: PropertyDeta
     return typeof property.status === 'string' 
       ? property.status === 'disponible' 
       : property.status?.status === 'disponible';
-  };
-
-  const toggleFavorite = () => {
-    setIsFavorite(!isFavorite);
-    // TODO: Implementar guardado en base de datos
-    Alert.alert(
-      isFavorite ? 'Eliminado de favoritos' : 'Agregado a favoritos',
-      isFavorite 
-        ? 'Esta propiedad fue eliminada de tus favoritos' 
-        : 'Esta propiedad fue agregada a tus favoritos'
-    );
   };
 
   const contactOwner = (method: 'phone' | 'email' | 'whatsapp') => {
@@ -268,14 +261,15 @@ export default function PropertyDetailScreen({ navigation, route }: PropertyDeta
           </TouchableOpacity>
 
           {/* Favorite Button */}
-          <TouchableOpacity 
-            style={styles.favoriteButton}
-            onPress={toggleFavorite}
-          >
-            <Text style={styles.favoriteIcon}>
-              {isFavorite ? '❤️' : '🤍'}
-            </Text>
-          </TouchableOpacity>
+          <View style={styles.favoriteButtonContainer}>
+            <FavoriteButton 
+              propertyId={propertyId!}
+              size={24}
+              onToggle={(isFavorite) => {
+                console.log(`Property ${propertyId} ${isFavorite ? 'added to' : 'removed from'} favorites`);
+              }}
+            />
+          </View>
         </View>
 
         {/* Property Info */}
@@ -302,7 +296,7 @@ export default function PropertyDetailScreen({ navigation, route }: PropertyDeta
             </Text>
             
             <Text style={styles.propertyPrice}>
-              L. {getEstimatedPrice(property.size || 50, property.type?.type || 'departamento').toLocaleString()}/mes
+              L. {(property.price || getEstimatedPrice(property.size || 50, property.type?.type || 'departamento')).toLocaleString()}/mes
             </Text>
           </View>
 
@@ -345,7 +339,7 @@ export default function PropertyDetailScreen({ navigation, route }: PropertyDeta
               <Text style={styles.locationIcon}>📍</Text>
               <View style={styles.locationInfo}>
                 <Text style={styles.locationText}>
-                  {property.location?.lat ? 
+                  {property.location?.lat && property.location?.lng ? 
                     `${property.location.lat.toFixed(4)}, ${property.location.lng.toFixed(4)}` : 
                     'Coordenadas no disponibles'
                   }
@@ -754,6 +748,12 @@ const styles = StyleSheet.create({
     color: Colors.white,
     fontSize: Sizes.fontMD,
     fontWeight: 'bold',
+  },
+  favoriteButtonContainer: {
+    position: 'absolute',
+    top: Sizes.sm,
+    right: Sizes.sm,
+    zIndex: 1,
   },
   bottomSpacing: {
     height: Sizes.xl,

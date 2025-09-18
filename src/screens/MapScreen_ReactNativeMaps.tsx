@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
@@ -12,6 +12,7 @@ import {
   ScrollView,
   Linking,
 } from 'react-native';
+import MapView, { Marker, Callout, Region } from 'react-native-maps';
 import { WebView } from 'react-native-webview';
 import * as Location from 'expo-location';
 import { Colors, Sizes } from '../constants/Colors';
@@ -56,8 +57,15 @@ export default function MapScreen({ navigation }: MapScreenProps) {
         type: place.type || { type: 'departamento' },
         status: place.status || { status: 'disponible' },
         owner: place.owner || { name: 'Propietario' },
-        location: place.location || { lat: 14.0723 + (Math.random() - 0.5) * 0.02, lng: -87.6431 + (Math.random() - 0.5) * 0.02 },
+        location: place.location ? {
+          lat: place.location.lat || 14.0723 + (Math.random() - 0.5) * 0.02,
+          lng: place.location.lon || place.location.lng || -87.6431 + (Math.random() - 0.5) * 0.02  // ← Priorizar "lon" sobre "lng"
+        } : {
+          lat: 14.0723 + (Math.random() - 0.5) * 0.02, 
+          lng: -87.6431 + (Math.random() - 0.5) * 0.02 
+        },
         size: place.size || 0,
+        price: place.price || place.monthlyPrice || 5000,
         photos: place.photos || [],
         created: place.created,
         updated: place.updated,

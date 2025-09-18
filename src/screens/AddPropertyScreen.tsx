@@ -9,13 +9,17 @@ import {
   TouchableOpacity,
   Alert,
   Image,
+  Modal,
+  TextInput,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import * as Location from 'expo-location';
 import { Colors, Sizes } from '../constants/Colors';
 import CustomInput from '../components/CustomInput';
 import CustomButton from '../components/CustomButton';
 import { useAuth } from '../context/AuthContext';
+import placesService from '../../services/places.service';
 
 export default function AddPropertyScreen() {
   const navigation = useNavigation();
@@ -23,6 +27,8 @@ export default function AddPropertyScreen() {
   const [loading, setLoading] = useState(false);
   const [currentStep, setCurrentStep] = useState(1);
   const totalSteps = 4;
+  const [showCoordinateModal, setShowCoordinateModal] = useState(false);
+  const [coordinateInput, setCoordinateInput] = useState('14.0723, -87.2068');
 
   const [formData, setFormData] = useState({
     // Información básica
@@ -66,6 +72,72 @@ export default function AddPropertyScreen() {
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const handleMapSelection = () => {
+    Alert.alert(
+      'Seleccionar ubicación en el mapa',
+      'Elige cómo quieres establecer la ubicación de tu propiedad:',
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        { 
+          text: 'Usar ubicación actual', 
+          onPress: () => getCurrentLocation() 
+        },
+        { 
+          text: 'Seleccionar coordenadas', 
+          onPress: () => showCoordinateInput() 
+        }
+      ]
+    );
+  };
+
+  const getCurrentLocation = async () => {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permisos necesarios', 'Necesitamos acceso a tu ubicación para usar esta función');
+        return;
+      }
+
+      const location = await Location.getCurrentPositionAsync({});
+      updateFormData('latitude', location.coords.latitude.toString());
+      updateFormData('longitude', location.coords.longitude.toString());
+      
+      // Obtener dirección desde coordenadas
+      const reverseGeocode = await Location.reverseGeocodeAsync({
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+      });
+      
+      if (reverseGeocode.length > 0) {
+        const address = `${reverseGeocode[0].street || ''} ${reverseGeocode[0].city || ''}, ${reverseGeocode[0].country || ''}`.trim();
+        updateFormData('address', address);
+      }
+      
+      Alert.alert('¡Ubicación establecida!', 'Se ha establecido tu ubicación actual');
+    } catch (error) {
+      Alert.alert('Error', 'No se pudo obtener tu ubicación actual');
+    }
+  };
+
+  const showCoordinateInput = () => {
+    setShowCoordinateModal(true);
+  };
+
+  const handleCoordinateSubmit = () => {
+    if (coordinateInput.trim()) {
+      const [lat, lng] = coordinateInput.split(',').map((coord: string) => coord.trim());
+      if (lat && lng && !isNaN(Number(lat)) && !isNaN(Number(lng))) {
+        updateFormData('latitude', lat);
+        updateFormData('longitude', lng);
+        setShowCoordinateModal(false);
+        setCoordinateInput('14.0723, -87.2068'); // Reset input
+        Alert.alert('¡Ubicación establecida!', `Coordenadas: ${lat}, ${lng}`);
+      } else {
+        Alert.alert('Error', 'Por favor ingresa coordenadas válidas (ejemplo: 14.0723, -87.2068)');
+      }
+    }
+  };
 
   const updateFormData = (key: string, value: any) => {
     setFormData(prev => ({ ...prev, [key]: value }));
@@ -120,8 +192,70 @@ export default function AddPropertyScreen() {
   const handleSubmit = async () => {
     setLoading(true);
     try {
-      // TODO: Integrar con servicio de propiedades
-      console.log('Datos de la propiedad:', formData);
+      // Validar datos requeridos
+      if (!formData.title || !formData.description || !formData.price) {
+        Alert.alert('Error', 'Por favor completa todos los campos requeridos');
+        return;
+      }
+
+      if (!formData.latitude || !formData.longitude) {
+        Alert.alert('Error', 'Por favor selecciona una ubicación para tu propiedad');
+        return;
+      }
+
+      // Preparar datos para PocketBase
+      const propertyData = {
+        title: formData.title,
+        description: formData.description,
+        // Usar el ID del usuario actual como owner (propietario)
+        owner: user?.id || '',
+        location: {
+          lat: parseFloat(formData.latitude),
+          lng: parseFloat(formData.longitude)
+        },
+        size: parseInt(formData.size) || 0,
+        price: parseInt(formData.price) || 0, // Campo price principal
+        photos: [], // Por ahora vacío, se puede implementar subida de fotos después
+        // Campos adicionales para compatibilidad con la app
+        monthlyPrice: parseInt(formData.price) || 0, // Mantener compatibilidad
+        deposit: parseInt(formData.deposit) || 0,
+        address: formData.address || 'Dirección no especificada',
+        city: formData.city || 'Tegucigalpa',
+        neighborhood: formData.neighborhood || '',
+        // Información del tipo de propiedad como string simple
+        property_type: formData.type as "casa" | "departamento" | "local comercial" | "oficina",
+        // Estado inicial como string
+        property_status: "disponible",
+        amenities: {
+          furnished: formData.furnished,
+          wifi: formData.wifi,
+          parking: formData.parking,
+          laundry: formData.laundry,
+          airConditioning: formData.airConditioning,
+          security: formData.security,
+          nearUniversity: formData.nearUniversity
+        },
+        contract: {
+          minContract: formData.minContract,
+          utilities: formData.utilities
+        },
+        rules: {
+          smoking: formData.smoking,
+          pets: formData.pets,
+          parties: formData.parties,
+          visitHours: formData.visitHours
+        },
+        // Campos de metadatos - PocketBase manejará created/updated automáticamente
+        created_by: user?.id || '',
+        updated_by: user?.id || ''
+      };
+
+      console.log('Enviando datos a PocketBase:', propertyData);
+      
+      // Guardar en PocketBase
+      const savedProperty = await placesService.createPlace(propertyData as any);
+      
+      console.log('Propiedad guardada exitosamente:', savedProperty);
       
       Alert.alert(
         '¡Propiedad agregada!',
@@ -134,7 +268,11 @@ export default function AddPropertyScreen() {
         ]
       );
     } catch (error: any) {
-      Alert.alert('Error', 'No se pudo agregar la propiedad. Intenta de nuevo.');
+      console.error('Error al crear propiedad:', error);
+      Alert.alert(
+        'Error', 
+        `No se pudo agregar la propiedad: ${error.message || 'Error desconocido'}. Intenta de nuevo.`
+      );
     } finally {
       setLoading(false);
     }
@@ -266,10 +404,19 @@ export default function AddPropertyScreen() {
         </View>
       </View>
 
-      <TouchableOpacity style={styles.locationButton}>
+      <TouchableOpacity style={styles.locationButton} onPress={handleMapSelection}>
         <Ionicons name="location-outline" size={20} color={Colors.primary} />
         <Text style={styles.locationButtonText}>Marcar en el mapa</Text>
       </TouchableOpacity>
+      
+      {/* Mostrar coordenadas si están establecidas */}
+      {formData.latitude && formData.longitude && (
+        <View style={styles.coordinatesDisplay}>
+          <Text style={styles.coordinatesText}>
+            📍 Coordenadas: {formData.latitude}, {formData.longitude}
+          </Text>
+        </View>
+      )}
     </View>
   );
 
@@ -475,6 +622,49 @@ export default function AddPropertyScreen() {
           style={styles.nextButton}
         />
       </View>
+
+      {/* Modal de coordenadas */}
+      <Modal
+        visible={showCoordinateModal}
+        transparent={true}
+        animationType="fade"
+        onRequestClose={() => setShowCoordinateModal(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Coordenadas GPS</Text>
+            <Text style={styles.modalSubtitle}>
+              Ingresa las coordenadas separadas por coma:
+            </Text>
+            
+            <TextInput
+              style={styles.coordinateInput}
+              value={coordinateInput}
+              onChangeText={setCoordinateInput}
+              placeholder="14.0723, -87.2068"
+              placeholderTextColor={Colors.textSecondary}
+              keyboardType="numeric"
+              multiline={false}
+            />
+            
+            <View style={styles.modalButtons}>
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.cancelButton]}
+                onPress={() => setShowCoordinateModal(false)}
+              >
+                <Text style={styles.cancelButtonText}>Cancelar</Text>
+              </TouchableOpacity>
+              
+              <TouchableOpacity 
+                style={[styles.modalButton, styles.confirmButton]}
+                onPress={handleCoordinateSubmit}
+              >
+                <Text style={styles.confirmButtonText}>Establecer</Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -686,5 +876,81 @@ const styles = StyleSheet.create({
   },
   nextButton: {
     marginBottom: 0,
+  },
+  // Modal styles
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Sizes.lg,
+  },
+  modalContent: {
+    backgroundColor: Colors.white,
+    borderRadius: Sizes.borderRadiusLG,
+    padding: Sizes.lg,
+    width: '100%',
+    maxWidth: 400,
+  },
+  modalTitle: {
+    fontSize: Sizes.fontLG,
+    fontWeight: 'bold',
+    color: Colors.textPrimary,
+    textAlign: 'center',
+    marginBottom: Sizes.sm,
+  },
+  modalSubtitle: {
+    fontSize: Sizes.fontMD,
+    color: Colors.textSecondary,
+    textAlign: 'center',
+    marginBottom: Sizes.lg,
+  },
+  coordinateInput: {
+    borderWidth: 1,
+    borderColor: Colors.lightGray,
+    borderRadius: Sizes.borderRadius,
+    padding: Sizes.md,
+    fontSize: Sizes.fontMD,
+    color: Colors.textPrimary,
+    marginBottom: Sizes.lg,
+    textAlign: 'center',
+  },
+  modalButtons: {
+    flexDirection: 'row',
+    gap: Sizes.md,
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: Sizes.md,
+    borderRadius: Sizes.borderRadius,
+    alignItems: 'center',
+  },
+  cancelButton: {
+    backgroundColor: Colors.lightGray,
+  },
+  confirmButton: {
+    backgroundColor: Colors.primary,
+  },
+  cancelButtonText: {
+    color: Colors.textSecondary,
+    fontSize: Sizes.fontMD,
+    fontWeight: '600',
+  },
+  confirmButtonText: {
+    color: Colors.white,
+    fontSize: Sizes.fontMD,
+    fontWeight: '600',
+  },
+  coordinatesDisplay: {
+    backgroundColor: Colors.primaryLight + '20',
+    borderRadius: Sizes.borderRadius,
+    padding: Sizes.sm,
+    marginTop: Sizes.sm,
+    alignItems: 'center',
+  },
+  coordinatesText: {
+    fontSize: Sizes.fontSM,
+    color: Colors.primary,
+    fontWeight: '600',
   },
 });
